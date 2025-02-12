@@ -1,0 +1,17 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "dotnetbuild",
+        "type": "shell",
+        "command": "dotnet build",  
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": "$msCompile",  
+        "detail": "Compilação do projeto .NET Core"
+      }
+    ]
+  }
+  
