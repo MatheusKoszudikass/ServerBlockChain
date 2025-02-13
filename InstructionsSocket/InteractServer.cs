@@ -92,7 +92,7 @@ namespace ServerBlockChain.InstructionsSocket
         private static string? SelectClient()
         {
             Console.WriteLine("\nEscolha um cliente para interagir (digite o número ou 'exit' para sair):");
-            SocketClient.StatusClientConnected();
+            SocketServer.StatusClientConnected();
 
             string? input = Task.Run(() => Console.ReadLine()).Result;
             return input;

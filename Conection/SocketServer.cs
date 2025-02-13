@@ -6,41 +6,75 @@ using System.Net.Sockets;
 using System.Text;
 using ServerBlockChain.Entiites;
 using ServerBlockChain.InstructionsSocket;
+using System.Diagnostics;
+using System.Threading.Tasks;
+#pragma warning restore format
 
 namespace ServerBlockChain.Conection;
 
 public class SocketServer
 {
-    private static readonly List<ClientMine> _clientsConnected = [];
+    private static readonly List<ClientMine> _clientMines = [];
+    private static readonly List<Socket> _clientsConnected = [];
 
-    public static async Task<Socket> StartAsync(uint port)
+    public static async Task StartAsync(uint port)
     {
-        var serverSocket = new Socket(AddressFamily.InterNetwork,
-         SocketType.Stream, ProtocolType.Tcp);
+        var listener = new Listener(port);
+        listener.Start();
+        Console.WriteLine("Servidor iniciado.");
+        while (listener.Listening)
+        {
+            var clientSocket = await listener.AcceptClientAsync();
+            if (clientSocket != null)
+            {
+                AddSocketAcceptedClient(clientSocket);
+            }
+        }
+    }
 
-        var endPoint = new IPEndPoint(IPAddress.Any, checked((int)port));
-        serverSocket.Bind(endPoint);
-        serverSocket.Listen(100);
+    private static ClientMine? AddSocketAcceptedClient(Socket? listener)
+    {
 
-        Console.WriteLine($"Servidor está rodando em {endPoint}");
+        if (listener == null) return null;
 
-        Console.WriteLine("Aguardando conexão de clientes...");
+        var clientMine = new ClientMine
+        {
+            Ip = listener.RemoteEndPoint?.ToString() ?? "Unknown",
+            SO = Environment.OSVersion.VersionString,
+            HoursRunning = Environment.TickCount / 3600000
+        };
+        lock (_clientsConnected)
+        {
 
-        var client = await ConnectClientAsync(serverSocket);
+            _clientsConnected.Add(listener);
+            _clientMines.Add(clientMine);
 
-        // InteractServer.InteractWithClientsAsync(_clientsConnected);
+        }
+        Console.Clear();
+        Console.WriteLine($"Total de clientes conectados: {_clientMines.Count}");
 
-        await ChatMessengerServer.StartChatAsync(client, _clientsConnected);
-        return serverSocket;
+        for (int i = 0; i < _clientMines.Count; i++)
+        {
+            Console.WriteLine($"Cliente conectado: {_clientMines[i].Ip} - SO: {_clientMines[i].SO} - {DateTime.Now}");
+        }
+        return clientMine;
+    }
+
+    private static void RemoveSocketAccepted(Object? sender, SocketClosedEventHandler e)
+    {
+        lock (_clientsConnected)
+        {
+            _clientsConnected.Remove(e.ClosedSocket);
+        }
     }
 
     private static async Task<Socket> ConnectClientAsync(Socket serverSocket)
     {
         while (true)
         {
+            string threadId = Environment.CurrentManagedThreadId.ToString();
             var client = await serverSocket.AcceptAsync();
-
-            Console.WriteLine($"Cliente conectado: {client.RemoteEndPoint}");
+            Console.WriteLine($"Cliente conectado: {client.RemoteEndPoint}, thread: {threadId}");
             lock (_clientsConnected)
             {
                 var clientMine = new ClientMine
@@ -50,8 +84,7 @@ public class SocketServer
                     HoursRunning = Environment.TickCount / 3600000
                 };
 
-                _clientsConnected.Add(clientMine);
-
+                _clientMines.Add(clientMine);
             }
             return client;
         }
@@ -59,7 +92,7 @@ public class SocketServer
 
     public static void StatusClientConnected()
     {
-        foreach (var client in _clientsConnected)
+        foreach (var client in _clientMines)
         {
             Console.WriteLine($"Clientes conectados: {client.Ip}");
             Console.WriteLine($"Sistema Operacional: {client.SO}");
