@@ -1,6 +1,6 @@
 
 using System.Net.Sockets;
-using ServerBlockChain.Entiites;
+using ServerBlockChain.Entities;
 
 namespace ServerBlockChain.Conection
 {

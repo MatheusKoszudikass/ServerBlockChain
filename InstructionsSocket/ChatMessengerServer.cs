@@ -3,7 +3,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 using ServerBlockChain.Conection;
-using ServerBlockChain.Entiites;
+using ServerBlockChain.Entities;
 
 namespace ServerBlockChain.InstructionsSocket
 {

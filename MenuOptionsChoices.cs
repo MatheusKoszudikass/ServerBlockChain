@@ -1,63 +1,67 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using ServerBlockChain.Conection;
+using ServerBlockChain.Menu;
 
 namespace ServerBlockChain
 {
     public class MenuOptionsChoices
     {
-        public static async Task<int> MenuOptions()
+        public async Task MenuOptions()
         {
+            Console.Clear();
             Console.WriteLine("Escolha uma opção:");
             Console.WriteLine("1 - Iniciar servidor");
-            Console.WriteLine("2 - Conectar ao servidor");
-            Console.WriteLine("3 - Sair");
+            Console.WriteLine("2 - Sair");
 
             var option = Console.ReadLine();
 
             if (int.TryParse(option, out int result))
             {
-                return result;
+                SelectedOption(result);
+                return;
             }
 
-            return await MenuOptions();
+            await MenuOptions();
         }
 
-        public static void SelectedOption(int option)
+        private async void SelectedOption(int option)
         {
             switch (option)
             {
                 case 1:
-                    // await ServerStart();
+                    await ServerStart();
                     break;
                 case 2:
-                    Console.WriteLine("Conectando ao servidor...");
-                    break;
-                case 3:
                     Console.WriteLine("Saindo...");
+                    Environment.Exit(0);
                     break;
                 default:
                     Console.WriteLine("Opção inválida.");
+                    await MenuOptions();
                     break;
             }
         }
 
-        public static void ServerStart()
+        private static async Task ServerStart()
         {
-            // uint port = 5000;
-            // Console.Write("Digite a porta para iniciar o servidor ou pressione Enter para usar a padrão (5000):");
+            Console.Clear();
+            uint defaultPort = 5000;
+            Console.Write("Digite a porta para iniciar o servidor ou pressione Enter para usar a padrão (5000):");
 
-            // if(port == 5000) SocketClient.StartAsync(port);
-            
-            // if (!uint.TryParse(Console.ReadLine(), out port) || port < 1)
-            // {
-            //    Console.WriteLine("Por favor, digite um número válido para a porta (deve ser maior que 0):");
-            //    await ServerStart();
-            //    return;
-            // }
-            // await SocketClient.StartAsync(port);
+            string input = Console.ReadLine() ?? string.Empty;
+            uint port = defaultPort;
+            if (!string.IsNullOrEmpty(input) && (!uint.TryParse(input, out port) || port <= 0))
+            {
+                Console.WriteLine("Por favor, digite um número válido para a porta (deve ser maior que 0):");
+                await ServerStart();
+                return;
+            }
+
+            var result = SocketServer.StartAsync(port);
+            if (result.Listening){
+                ConsoleHelp.WriteSuccess($"Servidor iniciado com sucesso! Porta:{port}");
+                var menuServer = new MenuOptionsServerChoices();
+                menuServer.ServerMenuOption(result);
+            } 
         }
     }
 }

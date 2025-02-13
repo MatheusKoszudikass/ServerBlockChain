@@ -1,5 +1,5 @@
 
-namespace ServerBlockChain.Entiites
+namespace ServerBlockChain.Entities
 {
 
     public class ClientMine

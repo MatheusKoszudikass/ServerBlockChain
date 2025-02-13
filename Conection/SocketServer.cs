@@ -4,7 +4,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using ServerBlockChain.Entiites;
+using ServerBlockChain.Entities;
 using ServerBlockChain.InstructionsSocket;
 using System.Diagnostics;
 using System.Threading.Tasks;
@@ -17,19 +17,20 @@ public class SocketServer
     private static readonly List<ClientMine> _clientMines = [];
     private static readonly List<Socket> _clientsConnected = [];
 
-    public static async Task StartAsync(uint port)
+    public static Listener StartAsync(uint port)
     {
         var listener = new Listener(port);
         listener.Start();
-        Console.WriteLine("Servidor iniciado.");
-        while (listener.Listening)
-        {
-            var clientSocket = await listener.AcceptClientAsync();
-            if (clientSocket != null)
-            {
-                AddSocketAcceptedClient(clientSocket);
-            }
-        }
+        // while (listener.Listening)
+        // {
+        //     var clientSocket = await listener.AcceptClientAsync();
+        //     if (clientSocket != null)
+        //     {
+        //         AddSocketAcceptedClient(clientSocket);
+        //     }
+        // }
+
+        return listener;
     }
 
     private static ClientMine? AddSocketAcceptedClient(Socket? listener)
@@ -86,6 +87,7 @@ public class SocketServer
 
                 _clientMines.Add(clientMine);
             }
+            
             return client;
         }
     }

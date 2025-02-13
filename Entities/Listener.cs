@@ -2,7 +2,7 @@ using System;
 using System.Net;
 using System.Net.Sockets;
 
-namespace ServerBlockChain.Entiites
+namespace ServerBlockChain.Entities
 {
     public class Listener(uint port)
     {
@@ -19,9 +19,7 @@ namespace ServerBlockChain.Entiites
                 if (this.Listening) return;
 
                 this.SocketServer.Bind(new IPEndPoint(IPAddress.Any, (int)this.Port));
-                this.SocketServer.Listen(0);
-
-                // this.SocketServer.BeginAccept(Callback, null);
+                this.SocketServer.Listen(200);
                 this.Listening = true;
 
             }
@@ -32,7 +30,7 @@ namespace ServerBlockChain.Entiites
             }
         }
 
-        public async Task<Socket?> AcceptClientAsync()
+        public async Task<Socket> AcceptClientAsync()
         {
             try
             {
