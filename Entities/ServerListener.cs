@@ -1,16 +1,17 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
 
 namespace ServerBlockChain.Entities
 {
     public class ServerListener(uint port)
     {
         Socket SocketServer = new(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-
-        public bool Listening { get; set; }
-
-        public uint Port { get; set; } = port;
+        readonly HashSet<Socket> SocketsServer = [];
+        private Socket SocketClient = new(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+        public bool Listening { get; private set; }
+        public uint Port { get; private set; } = port;
 
         public void Start()
         {
@@ -30,32 +31,55 @@ namespace ServerBlockChain.Entities
             }
         }
 
-        public Socket GetServerListener()
-        {
-            return this.SocketServer;
-        }
-
-        public async Task<Socket> AcceptClientAsync()
+        public void Stop()
         {
             try
             {
-                return await this.SocketServer.AcceptAsync();
+                this.SocketServer.Close();
+                this.Listening = false;
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
-                Console.WriteLine($"Erro ao aceitar cliente: {ex.Message}");
-                throw;
+                throw new Exception($"Erro ao parar o servidor: {ex.Message}");
             }
         }
 
-        public void Stop()
+        public async Task StartListeningForClients(CancellationToken cts)
         {
-            if (!this.Listening) return;
+            while (!cts.IsCancellationRequested)
+            {
+                try
+                {
+                    SocketClient = await this.SocketServer.AcceptAsync(cts);
+                    string ipClient = SocketClient.RemoteEndPoint?.ToString() ?? "Unknown";
 
-            this.SocketServer.Close();
-            this.SocketServer.Dispose();
-            this.SocketServer = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            this.Listening = false;
+                    lock (this.SocketsServer)
+                    {
+                        if (!this.SocketsServer.Any(c => c.RemoteEndPoint?.ToString() == ipClient))
+                        {
+                            this.SocketsServer.Add(SocketClient);
+                            continue;
+                        }
+
+                        SocketClient.Close();
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    Console.WriteLine("Parando a escuta de clientes.");
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Erro ao aceitar cliente: {ex.Message}");
+                }
+
+            }
         }
+
+
+        private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
+        public event Action<Socket>? DisconnectClientAct;
+        private const int CHECK_INTERVAL = 10000;
     }
 }

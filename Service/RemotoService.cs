@@ -41,6 +41,9 @@ namespace ServerBlockChain.Service
         {
             try
             {
+                var cancellationTokenSource = new CancellationTokenSource();
+                var cts = cancellationTokenSource.Token;
+     
                 string[] options = ["Enter the port to start the server or press ENTER to use port 5000:"];
 
                 _menuDisplayService.DisplayMenu(TypeHelp.Menu, options);
@@ -51,7 +54,13 @@ namespace ServerBlockChain.Service
 
                 _workSocket = new ServerListener(checked((uint)port));
 
+                _workSocket.DisconnectClientAct += (SocketClient) => {
+                    _clientService.DisconnectClient(SocketClient);
+                };
+
                 _workSocket.Start();
+    
+                _= _workSocket.StartListeningForClients(cts);
 
                 _clientService.Start(_workSocket);
             }

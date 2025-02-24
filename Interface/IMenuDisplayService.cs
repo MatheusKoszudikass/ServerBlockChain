@@ -37,12 +37,19 @@ namespace ServerBlockChain.Interface
         /// <param name="selectedIndex">The index of the selected option.</param>
         void DisplayMenu(TypeHelp type, object[] array, int selectedIndex);
 
+        void DisplayMenu(TypeHelp type, string[] array, object[] objs, int selectedIndex);
+
         /// <summary>
         /// Executes the action corresponding to the selected option.
         /// </summary>
         /// <param name="selectedOption">The number of the selected option.</param>
         void ExecuteOption(int selectedOption);
 
+        /// <summary>
+        /// Displays the menu based on the specified type and a list of options.
+        /// </summary>
+        /// <param name="type">The type of menu to be displayed.</param>
+        /// <param name="options">The list of options to be displayed.</param>
         void SelectedView(TypeHelp type, string[] options);
 
         /// <summary>
@@ -52,7 +59,7 @@ namespace ServerBlockChain.Interface
         /// <param name="array">The list of options to be displayed.</param>
         /// <param name="objs">Additional objects for display.</param>
         /// <returns>The option selected by the user.</returns>
-        object SelectedOption(TypeHelp type, object[] array, object[] objs);
+        object? SelectedOption(TypeHelp type, string[] array, object[] objs);
 
         /// <summary>
         /// Returns the index of the option selected by the user.

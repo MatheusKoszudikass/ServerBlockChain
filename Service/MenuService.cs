@@ -8,6 +8,11 @@ namespace ServerBlockChain.Service
     public class MenuDisplayService : IMenuDisplayService
     {
         private readonly Dictionary<int, Action> _menuActions = [];
+        private int Index = 0;
+        private int CurrentPage = 0;
+        private int TotalPages = 0;
+        private string[] OptionsList = [];
+        private object[] ObjectList = [];
 
         public void RegisterOption(int option, Action action)
         {
@@ -22,6 +27,18 @@ namespace ServerBlockChain.Service
             _menuActions.Clear();
         }
 
+        public void ExecuteOption(int selectedOption)
+        {
+            if (_menuActions.TryGetValue(selectedOption, out var action))
+            {
+                action.Invoke();
+            }
+            else
+            {
+                ConsoleHelp.WriteWarning(TypeHelp.Warning, "Invalid option selected.");
+            }
+        }
+
         public void DisplayMenu(TypeHelp type) => ConsoleHelp.WriteMenu("Press any key to return...");
 
         public void DisplayMenu(TypeHelp type, object[] array)
@@ -31,7 +48,6 @@ namespace ServerBlockChain.Service
             if (array.Length == 0)
             {
                 Console.WriteLine("Item was not found");
-                
                 return;
             }
 
@@ -43,8 +59,16 @@ namespace ServerBlockChain.Service
 
         public void DisplayMenu(TypeHelp type, object[] array, int selectedIndex)
         {
+            this.Index = selectedIndex;
+            if (array.Length == 0)
+            {
+                Console.WriteLine("Item was not found");
+                return;
+            }
+
             if (selectedIndex >= 0) Console.Clear();
 
+            Console.WriteLine($"Page {this.CurrentPage + 1} of {this.TotalPages}");
             for (int i = 0; i < array.Length; i++)
             {
                 if (i == selectedIndex)
@@ -57,17 +81,32 @@ namespace ServerBlockChain.Service
             }
         }
 
-        public void ExecuteOption(int selectedOption)
+        public void DisplayMenu(TypeHelp type, string[] options, object[] objs, int selectedIndex)
         {
-            if (_menuActions.TryGetValue(selectedOption, out var action))
+            this.Index = selectedIndex;
+            if (objs.Length != 0)
             {
-                action.Invoke();
+                if (selectedIndex >= 0) Console.Clear();
+
+                Console.WriteLine($"Page {this.CurrentPage + 1} of {this.TotalPages}");
+                for (int i = 0; i < options.Length; i++)
+                {
+                    if (i == selectedIndex)
+                    {
+                        ConsoleHelp.WriteSuccess(type, $"> {i + 1}. {options[i]}");
+                        continue;
+                    }
+
+                    ConsoleHelp.WriteMenu($"{i + 1}. {options[i]}");
+                }
             }
             else
             {
-                ConsoleHelp.WriteWarning("Invalid option selected.");
+                Console.WriteLine("Item was not found");
+                return;
             }
         }
+
 
         public void SelectedView(TypeHelp type, string[] options)
         {
@@ -76,9 +115,7 @@ namespace ServerBlockChain.Service
 
             do
             {
-
-                DisplayMenu(type, options);
-
+                Console.Clear();
                 for (int i = 0; i < options.Length; i++)
                 {
                     if (i == index)
@@ -93,8 +130,8 @@ namespace ServerBlockChain.Service
                     }
                 }
 
+                DisplayMenu(TypeHelp.Menu);
                 key = Console.ReadKey(true).Key;
-
                 switch (key)
                 {
                     case ConsoleKey.UpArrow:
@@ -105,20 +142,23 @@ namespace ServerBlockChain.Service
                         break;
                 }
 
-            } while (key != ConsoleKey.Escape); // Sai do loop ao pressionar ESC
+            } while (key != ConsoleKey.Enter);
         }
 
-
-        public object SelectedOption(TypeHelp type, object[] array, object[] objs)
+        public object? SelectedOption(TypeHelp type, string[] options, object[] objs)
         {
-            int selectedIndex = 0;
+            var objsFiltered = FilterList(objs, options);
+
+            this.Index = 0;
             ConsoleKey key;
+
+            if (objsFiltered.Length == 0) return objs;
 
             try
             {
                 do
                 {
-                    DisplayMenu(type, array, selectedIndex);
+                    var objectList = PageList(options,objsFiltered);
 
                     if (Console.KeyAvailable)
                     {
@@ -127,17 +167,58 @@ namespace ServerBlockChain.Service
 
                     key = Console.ReadKey(true).Key;
 
-                    selectedIndex = SelectArrowDisplay(key, objs, selectedIndex);
+                    this.Index = SelectArrowDisplay(key, objectList, this.Index);
 
                 } while (key != ConsoleKey.Enter);
+                this.CurrentPage = 0;
+                this.TotalPages = 0;
 
-                ExecuteOption(selectedIndex);
-                return selectedIndex;
+                if (_menuActions.ContainsKey(this.Index)) ExecuteOption(this.Index);
+
+                return objsFiltered[this.Index];
             }
             catch (Exception ex)
             {
                 throw new Exception($"Error when selecting option:{ex.Message}");
             }
+        }
+
+        //Needs improvement as the system is evolved
+        private static object[] FilterList(object[] objs, string[] options, string searchTerm = "")
+        {
+            if (string.IsNullOrEmpty(searchTerm) || objs.Length > 0)
+            {
+                var filteredArray = objs
+                    .Where(item => item.ToString()?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) == true)
+                    .ToArray();
+
+                Console.WriteLine(filteredArray.Length);
+                return filteredArray;
+            }
+            return objs;
+        }
+
+        private object[] PageList(string[] options, object[] objs)
+        {
+            int itemsPerPage = 10;
+            this.TotalPages = (int)Math.Ceiling((double)objs.Length / itemsPerPage);
+
+            int startIndex = CurrentPage * itemsPerPage;
+
+            if (objs.Length >= itemsPerPage)
+            {
+                this.ObjectList = [.. objs.Skip(startIndex).Take(itemsPerPage)];
+                this.OptionsList = [.. options.Skip(startIndex).Take(itemsPerPage)];
+                
+                this.Index = Math.Min(this.Index, this.ObjectList.Length - 1);
+                DisplayMenu(TypeHelp.Menu, this.OptionsList, this.ObjectList, this.Index);
+                return this.ObjectList;
+            }
+
+            Console.Clear();
+            this.Index = Math.Min(this.Index, objs.Length - 1);
+            DisplayMenu(TypeHelp.Menu, options, objs, this.Index);
+            return objs;
         }
 
         public int SelectedIndex()
@@ -150,7 +231,7 @@ namespace ServerBlockChain.Service
             return 0;
         }
 
-        private static int SelectArrowDisplay(ConsoleKey key, Object[] objs, int selectedIndex)
+        private int SelectArrowDisplay(ConsoleKey key, Object[] objs, int selectedIndex)
         {
             try
             {
@@ -161,6 +242,28 @@ namespace ServerBlockChain.Service
                         break;
                     case ConsoleKey.DownArrow:
                         selectedIndex = (selectedIndex == objs.Length - 1) ? 0 : selectedIndex + 1;
+                        break;
+                    case ConsoleKey.LeftArrow:
+                        if (this.CurrentPage > 0)
+                        {
+                            Console.Clear();
+                            CurrentPage--;
+                        }
+                        break;
+                    case ConsoleKey.RightArrow:
+                        if (this.CurrentPage < this.TotalPages - 1)
+                        {
+                            Console.Clear();
+                            CurrentPage++;
+                        }
+                        break;
+                    case ConsoleKey.F:
+                        if (objs.Length > 0)
+                        {
+                            ConsoleHelp.WriteMenu("Enter filter text: ");
+                            string newFilter = Console.ReadLine() ?? "";
+                            // FilterList(objs, options, newFilter);
+                        }
                         break;
                 }
 

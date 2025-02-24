@@ -12,14 +12,14 @@ public static class ConsoleHelp
         WriteInColor(type.ToString(), message, ConsoleColor.Green);
     }
 
-    public static void WriteError(string message)
+    public static void WriteError(TypeHelp type, string message)
     {
-        WriteInColor("ERRO", message, ConsoleColor.Red);
+        WriteInColor(type.ToString(), message, ConsoleColor.Red);
     }
 
-    public static void WriteWarning(string message)
+    public static void WriteWarning(TypeHelp type, string message)
     {
-        WriteInColor("AVISO", message, ConsoleColor.Yellow);
+        WriteInColor(type.ToString() , message, ConsoleColor.Yellow);
     }
 
     private static void WriteInColor(string typeInfo, string message, ConsoleColor color)
