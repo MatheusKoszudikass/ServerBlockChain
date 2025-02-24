@@ -3,15 +3,16 @@ using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using ServerBlockChain.Entities;
+using ServerBlockChain.Entities.Enum;
 
 namespace ServerBlockChain.Menu
 {
     public class MenuOptionsServerChoices
     {
-        private readonly List<ClientMine> _clientMines = new();
-        private readonly List<Socket> _clientsConnected = new();
+        private readonly List<ClientMine> _clientMines = [];
+        private readonly List<Socket> _clientsConnected = [];
 
-        public void ServerMenuOption(Listener listener)
+        public void ServerMenuOption(ServerListener listener)
         {
             if (!listener.Listening) return;
 
@@ -21,14 +22,14 @@ namespace ServerBlockChain.Menu
                 Console.WriteLine("Servidor iniciado. Escolha uma opção:");
                 Console.WriteLine("1 - Ver todos os clientes conectados");
                 Console.WriteLine("2 - Atualizar clientes em tempo real");
-                Console.WriteLine("3 - Selecionar cliente");
+                Console.WriteLine("3 - Selecionar um cliente");
                 Console.WriteLine("4 - Sair");
 
                 var option = Console.ReadLine();
 
                 if (int.TryParse(option, out int result))
                 {
-                     ServerSelectedOption(result, listener);
+                    ServerSelectedOption(result, listener);
                 }
                 else
                 {
@@ -38,7 +39,7 @@ namespace ServerBlockChain.Menu
             }
         }
 
-        private void ServerSelectedOption(int option, Listener listener)
+        private void ServerSelectedOption(int option, ServerListener listener)
         {
             switch (option)
             {
@@ -68,14 +69,14 @@ namespace ServerBlockChain.Menu
 
             for (int i = 0; i < _clientMines.Count; i++)
             {
-                Console.WriteLine($"Cliente conectado: {_clientMines[i].Ip} - SO: {_clientMines[i].SO} - {DateTime.Now}");
+                ConsoleHelp.WriteSuccess(TypeHelp.Success, $"Cliente conectado: {_clientMines[i].Ip} - SO: {_clientMines[i].SO} - Status: {_clientMines[i].Status} - {DateTime.Now}");
             }
 
             Console.WriteLine("Pressione qualquer tecla para continuar...");
             Console.ReadLine();
         }
 
-        private void MonitorClients(Listener listener)
+        private Task MonitorClients(ServerListener listener)
         {
             try
             {
@@ -83,37 +84,37 @@ namespace ServerBlockChain.Menu
                 var cancellationTokenSource = new CancellationTokenSource();
                 var cancellationToken = cancellationTokenSource.Token;
 
-                 _ = Task.Run(async () =>
-                {
-                    while (!cancellationToken.IsCancellationRequested && listener.Listening)
-                    {
-                        var workSocket = await listener.AcceptClientAsync();
-                        if (workSocket != null)
-                        {
-                            var clientMine = new ClientMine
-                            {
-                                Ip = workSocket.RemoteEndPoint?.ToString() ?? "Unknown",
-                                SO = Environment.OSVersion.VersionString,
-                                HoursRunning = Environment.TickCount / 3600000
-                            };
+                var result = Task.Run(async () =>
+               {
+                   while (!cancellationToken.IsCancellationRequested && listener.Listening)
+                   {
+                       var workSocket = await listener.AcceptClientAsync();
+                       if (workSocket != null)
+                       {
+                           var clientMine = new ClientMine(workSocket)
+                           {
+                               Ip = workSocket.RemoteEndPoint?.ToString() ?? "Unknown",
+                               Status = true,
+                               SO = workSocket.Handle.ToString(),
+                               HoursRunning = Environment.TickCount / 3600000
+                           };
 
-                            lock (_clientsConnected)
-                            {
-                                _clientsConnected.Add(workSocket);
-                                _clientMines.Add(clientMine);
-                            }
+                           lock (_clientsConnected)
+                           {
+                               _clientsConnected.Add(workSocket);
+                               _clientMines.Add(clientMine);
+                           }
 
-                            Console.WriteLine($"> Novo cliente conectado: {clientMine.Ip}");
-                        }
-                    }
-                }, cancellationToken);
+                           ConsoleHelp.WriteSuccess(TypeHelp.Success, $"Novo cliente conectado: {clientMine.Ip}");
+                       }
+                   }
+                   Console.WriteLine($"Total de clientes conectados: {_clientMines.Count}");
+               }, cancellationToken);
 
                 Console.WriteLine("Monitorando clientes conectados. Pressione qualquer tecla para voltar ao menu...");
                 Console.ReadLine();
                 cancellationTokenSource.Cancel();
-
-                Console.Clear();
-                Console.WriteLine("Voltando ao menu principal...");
+                return result;
             }
             catch (Exception ex)
             {
@@ -123,41 +124,72 @@ namespace ServerBlockChain.Menu
 
         }
 
-
-        // private async Task UpdateClients(Listener listener)
-        // {
-        //     while (listener.Listening)
-        //     {
-        //         var workSocket = await listener.AcceptClientAsync();
-
-        //         if (workSocket != null)
-        //         {
-        //             var clientMine = new ClientMine
-        //             {
-        //                 Ip = workSocket.RemoteEndPoint?.ToString() ?? "Unknown",
-        //                 SO = Environment.OSVersion.VersionString,
-        //                 HoursRunning = Environment.TickCount / 3600000
-        //             };
-
-        //             lock (_clientsConnected)
-        //             {
-        //                 _clientsConnected.Add(workSocket);
-        //                 _clientMines.Add(clientMine);
-        //             }
-
-        //             Console.WriteLine($"Novo cliente conectado: {clientMine.Ip}");
-        //             Console.WriteLine("Pressione qualquer tecla para continuar...");
-        //             Console.ReadLine();
-        //         }
-        //     }
-        // }
-
         private void SelectClient()
         {
-            Console.Clear();
-            Console.WriteLine("Seleção de cliente não implementada ainda.");
-            Console.WriteLine("Pressione qualquer tecla para continuar...");
-            Console.ReadLine();
+            int selectedIndex = 0;
+            ConsoleKey key;
+
+            try
+            {
+                do
+                {
+                    Console.Clear();
+                    Console.WriteLine("Escolha um cliente:");
+
+                    DisplayClient(selectedIndex);
+
+                    if (Console.KeyAvailable)
+                    {
+                        break;
+                    }
+                    
+                    key = Console.ReadKey(true).Key;
+
+                    selectedIndex = SelectArrowDisplay(key, selectedIndex);
+
+                } while (key != ConsoleKey.Enter);
+
+                var selectedClient = _clientMines[selectedIndex];
+
+                Console.WriteLine($"Cliente selecionado: {selectedClient.Ip}");
+
+                var menuClient = new MenuOptionsClientChoices();
+                menuClient.ClientMenuOptions(selectedClient);
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+        }
+
+        private void DisplayClient(int selectedIndex)
+        {
+            for (int i = 0; i < _clientsConnected.Count; i++)
+            {
+                if (i == selectedIndex)
+                {
+                    ConsoleHelp.WriteSuccess(TypeHelp.Success, $"{i + 1}. {_clientsConnected[i].RemoteEndPoint}");
+                    Console.ResetColor();
+                    continue;
+                }
+
+                Console.WriteLine($"{i + 1}. {_clientsConnected[i].RemoteEndPoint}");
+            }
+        }
+
+        private int SelectArrowDisplay(ConsoleKey key, int selectedIndex)
+        {
+            switch (key)
+            {
+                case ConsoleKey.UpArrow:
+                    selectedIndex = (selectedIndex == 0) ? _clientMines.Count - 1 : selectedIndex - 1;
+                    break;
+                case ConsoleKey.DownArrow:
+                    selectedIndex = (selectedIndex == _clientMines.Count - 1) ? 0 : selectedIndex + 1;
+                    break;
+            }
+
+            return selectedIndex;
         }
     }
 }

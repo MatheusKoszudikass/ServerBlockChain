@@ -4,7 +4,7 @@ using System.Net.Sockets;
 
 namespace ServerBlockChain.Entities
 {
-    public class Listener(uint port)
+    public class ServerListener(uint port)
     {
         Socket SocketServer = new(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 
@@ -28,6 +28,11 @@ namespace ServerBlockChain.Entities
 
                 throw new Exception($"Erro ao iniciar o servidor: {ex.Message}");
             }
+        }
+
+        public Socket GetServerListener()
+        {
+            return this.SocketServer;
         }
 
         public async Task<Socket> AcceptClientAsync()

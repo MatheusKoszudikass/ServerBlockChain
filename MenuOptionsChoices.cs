@@ -1,4 +1,5 @@
 using ServerBlockChain.Conection;
+using ServerBlockChain.Entities.Enum;
 using ServerBlockChain.Menu;
 
 namespace ServerBlockChain
@@ -58,7 +59,7 @@ namespace ServerBlockChain
 
             var result = SocketServer.StartAsync(port);
             if (result.Listening){
-                ConsoleHelp.WriteSuccess($"Servidor iniciado com sucesso! Porta:{port}");
+                ConsoleHelp.WriteSuccess(TypeHelp.Success, $"Servidor iniciado com sucesso! Porta:{port}");
                 var menuServer = new MenuOptionsServerChoices();
                 menuServer.ServerMenuOption(result);
             } 

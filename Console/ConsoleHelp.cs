@@ -1,8 +1,15 @@
+using ServerBlockChain.Entities.Enum;
+
 public static class ConsoleHelp
 {
-    public static void WriteSuccess(string message)
+    public static void WriteMenu(string message)
     {
-        WriteInColor("SUCESSO", message, ConsoleColor.Green);
+        // BackGroundInColor(ConsoleColor.DarkBlue);
+        WriteInColor("", message, ConsoleColor.White);
+    }
+    public static void WriteSuccess(TypeHelp type, string message)
+    {
+        WriteInColor(type.ToString(), message, ConsoleColor.Green);
     }
 
     public static void WriteError(string message)
@@ -20,5 +27,10 @@ public static class ConsoleHelp
         Console.ForegroundColor = color;
         Console.WriteLine($"{typeInfo}: {message}");
         Console.ResetColor();
+    }
+
+    private static void BackGroundInColor(ConsoleColor color)
+    {
+        Console.BackgroundColor = color;
     }
 }
