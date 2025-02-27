@@ -58,6 +58,7 @@ namespace ServerBlockChain.Entities
                         if (!this.SocketsServer.Any(c => c.RemoteEndPoint?.ToString() == ipClient))
                         {
                             this.SocketsServer.Add(SocketClient);
+                            OnClientConnected(SocketClient);
                             continue;
                         }
 
@@ -77,8 +78,11 @@ namespace ServerBlockChain.Entities
             }
         }
 
+        protected virtual void OnClientConnected(Socket socket) => this.ClientConnectedAct?.Invoke(socket);
+        protected virtual void OnDisconnectClient(Socket socket) => this.DisconnectClientAct?.Invoke(socket);
 
-        private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
+        private readonly CancellationTokenSource _cancellationTokenSource = new ();
+        public event Action<Socket>? ClientConnectedAct;
         public event Action<Socket>? DisconnectClientAct;
         private const int CHECK_INTERVAL = 10000;
     }

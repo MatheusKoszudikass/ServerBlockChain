@@ -1,11 +1,12 @@
 using System;
+using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 
 namespace ServerBlockChain.Entities
 {
     public class Certificate
     {
-        public X509Certificate2? X509Certificate { get; private set; }
+        public X509Certificate2? X509Certificate;
         public string Issuer => X509Certificate?.Issuer ?? string.Empty;
         public string Subject => X509Certificate?.Subject ?? string.Empty;
         public DateTime ValidFrom => X509Certificate?.NotBefore ?? DateTime.MinValue;
@@ -15,21 +16,18 @@ namespace ServerBlockChain.Entities
 
         public event EventHandler<X509Certificate2>? CertificateChanged;
 
-        public Certificate()
-        {
-            LoadCertificateFromEnvironment();
-        }
-
         public void LoadCertificateFromEnvironment()
         {
-            string path = Environment.GetEnvironmentVariable("CERTIFICATE_PATH") ?? string.Empty;
-            string password = Environment.GetEnvironmentVariable("CERTIFICATE_PASSWORD") ?? string.Empty;
+            // if(this.X509Certificate != null) return;
+            
+            var path = Environment.GetEnvironmentVariable("CERTIFICATE_PATH");
+            path = @"/home/koszudikas/certificado/certificado.pfx";
+            var password = Environment.GetEnvironmentVariable("CERTIFICATE_PASSWORD");
+            password = "88199299";
 
-            if (string.IsNullOrEmpty(path) || string.IsNullOrEmpty(password))
-            {
+            if (string.IsNullOrEmpty(path) || string.IsNullOrEmpty(password)) 
                 throw new InvalidOperationException("Certificate path or password is not set in environment variables.");
-            }
-
+            
             try
             {
                 X509Certificate = new X509Certificate2(path, password);

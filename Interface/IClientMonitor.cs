@@ -7,11 +7,9 @@ using ServerBlockChain.Entities;
 
 namespace ServerBlockChain.Interface
 {
-    public interface IRemotoService
+    public interface IClientMonitor
     {
-        event Action<Socket> ClientConnectedAtc;
-        void CreateRemoto();
-
-        void StopRemoto();
+        event Action<ClientInfo>? ClientDesconnectedAct;
+        Task MonitorConnectionClient(Socket socket);
     }
 }

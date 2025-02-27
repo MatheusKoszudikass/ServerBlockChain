@@ -16,6 +16,8 @@ namespace ServerBlockChain.Interface
         /// <param name="serverListener">The server listener to be used.</param>
         void Start(ServerListener serverListener);
 
+        Task ListenerConnectionClient(Socket socket);
+
         /// <summary>
         /// Connects a client to the server using the specified server listener.
         /// </summary>

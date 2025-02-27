@@ -13,8 +13,7 @@ namespace ServerBlockChain.Service
     {
         public event Action? ReturnToClientService;
         private readonly IMenuDisplayService _menuDisplayService = menuDisplayService;
-        private ClientMine _clientMine = new(new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp));
-        private Chat _chat = new(new ClientMine(new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)));
+        private ClientMine _clientMine = new ();
         private string[] _options = [];
 
         public void Start(ClientMine clientMine)
@@ -61,7 +60,7 @@ namespace ServerBlockChain.Service
                     $"Client IP local: {_clientMine.IpLocal}",
                     $"Client Name: {_clientMine.Name}",
                     $"Client status: {_clientMine.Status}",
-                    $"Client SO: {_clientMine.SO}",
+                    $"Client SO: {_clientMine.So}",
                     $"Client Hours Running: {_clientMine.HoursRunning}",
                     $"Client memory: {_clientMine.HardwareInfo?.TotalRAM}",
                     $"Client Name Processor: {_clientMine.HardwareInfo?.ProcessorName}",
@@ -99,18 +98,18 @@ namespace ServerBlockChain.Service
         {
             try
             {
-                Console.Clear();
-                this._chat = new Chat(_clientMine);
-                _chat.Start();
-                _chat.InfoClientMine += (client, clientMine) =>
-                {
-                    Console.WriteLine($"{clientMine.IpPublic} - SO: {clientMine.SO} - Status: {clientMine.Status} - {DateTime.Now}");
-                    _clientMine = clientMine;
-                };
+                // Console.Clear();
+                // this._chat = new Chat(_clientMine);
+                // _chat.Start();
+                // _chat.InfoClientMine += (client, clientMine) =>
+                // {
+                //     Console.WriteLine($"{clientMine.IpPublic} - SO: {clientMine.So} - Status: {clientMine.Status} - {DateTime.Now}");
+                //     _clientMine = clientMine;
+                // };
 
-                _menuDisplayService.DisplayMenu(TypeHelp.Menu);
-                Console.ReadKey();
-                Start(_clientMine);
+                // _menuDisplayService.DisplayMenu(TypeHelp.Menu);
+                // Console.ReadKey();
+                // Start(_clientMine);
             }
             catch (Exception ex)
             {

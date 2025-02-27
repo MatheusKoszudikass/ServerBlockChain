@@ -4,6 +4,8 @@ namespace ServerBlockChain.Interface
 {
     public interface IMenuDisplayService
     {
+        public int TotalClientConnected { get; set; }
+
         /// <summary>
         /// Registers an option in the menu with the corresponding action.
         /// </summary>
@@ -35,7 +37,7 @@ namespace ServerBlockChain.Interface
         /// <param name="type">The type of menu to be displayed.</param>
         /// <param name="array">The list of options to be displayed.</param>
         /// <param name="selectedIndex">The index of the selected option.</param>
-        void DisplayMenu(TypeHelp type, object[] array, int selectedIndex);
+        void DisplayMenu(TypeHelp type, string[] array, int selectedIndex);
 
         void DisplayMenu(TypeHelp type, string[] array, object[] objs, int selectedIndex);
 
