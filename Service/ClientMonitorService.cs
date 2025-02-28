@@ -18,15 +18,23 @@ namespace ServerBlockChain.Service
 
         public async Task MonitorConnectionClient(Socket socket)
         {
-            while (socket.Connected)
+            var clientTasks = new List<Task>();
+
+            var clients = _clientManager.GetAllClients();
+
+            foreach (var clientInfo in clients)
             {
-                var clientInfo = _clientManager.GetLastClient();
-                Console.WriteLine($"Client {clientInfo?.Socket!.Connected} connected.");
-                _dataMonitorService.StartDepencenciesAsync(clientInfo!.Socket!, clientInfo?.SslStream!);
-                await _dataMonitorService.ReceiveDataAsync();
-                await _dataMonitorService.SendDataAsync(SendMessageDefault.MessageSuccess);
-                await Task.Delay(5000);
+                while (socket.Connected)
+                {
+                    Console.WriteLine($"Client {clientInfo?.Socket!.Connected} connected.");
+                    _dataMonitorService.StartDepencenciesAsync(clientInfo!.Socket!, clientInfo?.SslStream!);
+                    await _dataMonitorService.ReceiveDataAsync();
+                    await _dataMonitorService.SendDataAsync(SendMessageDefault.MessageSuccess);
+                    await Task.Delay(5000);
+                }
             }
+
+            await Task.WhenAll(clientTasks);
         }
     }
 }

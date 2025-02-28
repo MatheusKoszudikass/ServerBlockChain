@@ -61,7 +61,7 @@ namespace ServerBlockChain.Service
             }
         }
 
-        public async Task ListenerConnectionClient(Socket socket)
+        public async Task ListenerConnectionClient(Socket socket, Certificate certificate)
         {
             _clientManager.DisconnectedClientAtc += (data) =>
             {
@@ -73,19 +73,19 @@ namespace ServerBlockChain.Service
                 }
             };
 
-            var clientInfo = _clientManager.GetLastClient();
-            Console.WriteLine($"Client {clientInfo?.Socket!.Connected} connected.");
-            _dataMonitorService.StartDepencenciesAsync(clientInfo!.Socket!, clientInfo?.SslStream!);
+            // var clientInfo = _clientManager.GetLastClient();
 
-            _dataMonitorService.DataReceived += (data) => 
+
+            _dataMonitorService.DataReceived += (data) =>
             {
                 data.Socket = socket;
-                Console.WriteLine($"Received data ClientService: {data.Socket!.Connected}");
                 this._clientMines.Add(data);
             };
+            await _dataMonitorService.StartDepencenciesAsync(socket, certificate);
 
             await _dataMonitorService.ReceiveDataAsync();
             _menuDisplayService.TotalClientConnected = _clientMines.Count;
+
         }
 
         public void PopulateClientMines(int count)

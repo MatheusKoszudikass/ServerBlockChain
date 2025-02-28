@@ -12,11 +12,14 @@ namespace ServerBlockChain.Entities
     {
         private readonly SslStream _sslStream = sslStream;
         private readonly CancellationTokenSource _cancellationTokenSource = cancellationTokenSource;
-        public event EventHandler<T>? Sending; // Mantemos o evento Sent
-        public event EventHandler? ClientDisconnected; // Novo evento para notificar desconexão
+        public event Action<T>? SendingAtc; // Mantemos o evento Sent
+        public event Action<SslStream>? ClientDisconnectedAtc; // Novo evento para notificar desconexão
+
+        private readonly SemaphoreSlim _semaphore = new(1, 1);
 
         public async Task SendAsync(T data)
         {
+
             try
             {
                 await ExecuteWithTimeout(() => SendLengthPrefix(data), TimeSpan.FromSeconds(5));
@@ -28,7 +31,6 @@ namespace ServerBlockChain.Entities
             }
             catch (Exception ex)
             {
-                // Notifica que o cliente desconectou em caso de erro
                 OnClientDisconnected();
                 throw new Exception($"Error: {ex.Message}");
             }
@@ -36,6 +38,7 @@ namespace ServerBlockChain.Entities
 
         private async Task SendLengthPrefix(T data)
         {
+            await _semaphore.WaitAsync(_cancellationTokenSource.Token);
             try
             {
                 byte[] dataBytes = JsonSerializer.SerializeToUtf8Bytes(data);
@@ -48,10 +51,15 @@ namespace ServerBlockChain.Entities
                 OnClientDisconnected();
                 throw new Exception($"Error sending length prefix: {ex.Message}");
             }
+            finally
+            {
+                _semaphore.Release();
+            }
         }
 
         private async Task SendObject(T data)
         {
+            await _semaphore.WaitAsync(_cancellationTokenSource.Token);
             try
             {
                 byte[] dataBytes = JsonSerializer.SerializeToUtf8Bytes(data);
@@ -60,9 +68,13 @@ namespace ServerBlockChain.Entities
             }
             catch (Exception ex)
             {
-                // Notifica que o cliente desconectou em caso de erro
+
                 OnClientDisconnected();
                 throw new Exception($"Error sending object: {ex.Message}");
+            }
+            finally
+            {
+                _semaphore.Release();
             }
         }
 
@@ -79,12 +91,12 @@ namespace ServerBlockChain.Entities
 
         protected virtual void OnSent(T data)
         {
-            Sending?.Invoke(this, data);
+            SendingAtc?.Invoke(data);
         }
 
         protected virtual void OnClientDisconnected()
         {
-            ClientDisconnected?.Invoke(this, EventArgs.Empty); // Dispara o evento de desconexão
+            ClientDisconnectedAtc?.Invoke(_sslStream); // Dispara o evento de desconexão
         }
     }
 }

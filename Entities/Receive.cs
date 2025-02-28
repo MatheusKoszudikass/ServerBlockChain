@@ -13,9 +13,10 @@ namespace ServerBlockChain.Entities
         private readonly SslStream _sslStream = sslStream;
         private int TotalBytesReceived = 0;
         public CancellationTokenSource _cancellationTokenSource = cancellationTokenSource;
-        public event EventHandler<T>? Received;
-        public event EventHandler<CancellationTokenSource>? CanceledOperation;
-        public event EventHandler<SslStream>? ClientDisconnected;
+        public event Action<T>? ReceivedAct;
+        public event Action<CancellationTokenSource>? CanceledOperationAtc;
+        public event Action<SslStream>? ClientDisconnectedAct;
+        private readonly SemaphoreSlim _semaphore = new(1, 1);
 
         public async Task ReceiveDataAsync()
         {
@@ -34,6 +35,7 @@ namespace ServerBlockChain.Entities
 
         private async Task ReceiveLengthPrefix()
         {
+            await _semaphore.WaitAsync(_cancellationTokenSource.Token);
             try
             {
                 await _sslStream.ReadAsync(StateObject.BufferInit.AsMemory(0, StateObject.BufferInit.Length));
@@ -44,24 +46,40 @@ namespace ServerBlockChain.Entities
             {
                 throw new Exception($"Error receiving length prefix: {ex.Message}");
             }
+            finally
+            {
+                _semaphore.Release();
+            }
         }
 
         private async Task ReceiveObject()
         {
-            TotalBytesReceived = 0;
-            while (TotalBytesReceived < StateObject.BufferReceiveSize)
+            await _semaphore.WaitAsync(_cancellationTokenSource.Token);
+            try
             {
-                int bytesRead = await _sslStream.ReadAsync(
-                    StateObject.BufferReceive.AsMemory(TotalBytesReceived,
-                    StateObject.BufferReceiveSize - TotalBytesReceived), _cancellationTokenSource.Token);
-
-                if (bytesRead == 0)
+                TotalBytesReceived = 0;
+                while (TotalBytesReceived < StateObject.BufferReceiveSize)
                 {
-                    OnClientDisconnected();
-                    OnCanceledOperation(_cancellationTokenSource);
-                    break;
+                    int bytesRead = await _sslStream.ReadAsync(
+                        StateObject.BufferReceive.AsMemory(TotalBytesReceived,
+                        StateObject.BufferReceiveSize - TotalBytesReceived), _cancellationTokenSource.Token);
+
+                    if (bytesRead == 0)
+                    {
+                        OnClientDisconnected();
+                        OnCanceledOperation(_cancellationTokenSource);
+                        break;
+                    }
+                    TotalBytesReceived += bytesRead;
                 }
-                TotalBytesReceived += bytesRead;
+            }
+            catch (SocketException ex)
+            {
+                throw new Exception($"Error receiving object: {ex.Message}");
+            }
+            finally
+            {
+                _semaphore.Release();
             }
         }
 
@@ -97,17 +115,17 @@ namespace ServerBlockChain.Entities
 
         protected virtual void OnReceived(T data)
         {
-            Received?.Invoke(this, data);
+            ReceivedAct?.Invoke(data);
         }
 
         protected virtual void OnCanceledOperation(CancellationTokenSource cancellationTokenSource)
         {
-            CanceledOperation?.Invoke(this, cancellationTokenSource);
+            CanceledOperationAtc?.Invoke(cancellationTokenSource);
         }
 
         protected virtual void OnClientDisconnected()
         {
-            ClientDisconnected?.Invoke(this, this._sslStream);
+            ClientDisconnectedAct?.Invoke(this._sslStream);
         }
     }
 }

@@ -15,6 +15,7 @@ namespace ServerBlockChain.Service
         private readonly IClientService _clientService = clientService;
         private readonly IDataMonitorService<object> _dataMonitorService = dataMonitorService;
         private readonly IClientMonitor _clientMonitor = clientMonitor;
+        private SemaphoreSlim? _semaphore = new (1, 1);
         private ServerListener? _workSocket;
 
         public void CreateRemoto()
@@ -56,9 +57,8 @@ namespace ServerBlockChain.Service
 
                 _workSocket.ClientConnectedAct += async (SocketClient) =>
                 {
-                    await OnClientConnected(SocketClient);
-                    await _clientService.ListenerConnectionClient(SocketClient);
-                    _= _clientMonitor.MonitorConnectionClient(SocketClient);
+                     await Task.Run(() => OnClientConnected(SocketClient));
+                    //  await OnClientConnected(SocketClient);
                 };
 
                 _workSocket.DisconnectClientAct += (SocketClient) =>
@@ -68,7 +68,7 @@ namespace ServerBlockChain.Service
 
                 _workSocket.Start();
 
-                _ = _workSocket.StartListeningForClients(cts);
+                Task.Run(() => _workSocket.StartListeningForClients(cts), cts);
 
                 _clientService.Start(_workSocket);
             }
@@ -80,11 +80,17 @@ namespace ServerBlockChain.Service
 
         protected virtual async Task OnClientConnected(Socket socket)
         {
+            await _semaphore!.WaitAsync();
             var certificate = new Certificate();
             certificate.LoadCertificateFromEnvironment();
-            await _dataMonitorService.StartDepencenciesAsync(socket, certificate);
-            await _dataMonitorService.ReceiveDataAsync();
-            await _dataMonitorService.SendDataAsync(SendMessageDefault.MessageSuccess);
+            // await _dataMonitorService.StartDepencenciesAsync(socket, certificate);
+            // await _dataMonitorService.ReceiveDataAsync();
+            // await _dataMonitorService.SendDataAsync(SendMessageDefault.MessageSuccess);
+
+            await _clientService.ListenerConnectionClient(socket, certificate);
+            // await _clientMonitor.MonitorConnectionClient(socket);
+
+            _semaphore.Release();
         }
 
         public void StopRemoto()

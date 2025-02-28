@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Sockets;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using ServerBlockChain.Entities;
 using ServerBlockChain.Entities.Enum;
@@ -16,7 +17,7 @@ namespace ServerBlockChain.Interface
         /// <param name="serverListener">The server listener to be used.</param>
         void Start(ServerListener serverListener);
 
-        Task ListenerConnectionClient(Socket socket);
+        Task ListenerConnectionClient(Socket socket, Certificate certificate);
 
         /// <summary>
         /// Connects a client to the server using the specified server listener.
