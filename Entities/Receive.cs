@@ -11,8 +11,8 @@ namespace ServerBlockChain.Entities
         private int _totalBytesReceived;
         private readonly CancellationToken _cancellationToken = cancellationToken;
         private readonly StateObject Buffer = new();
-        public event Action<T>? ReceivedAct;
-        public event Action<List<T>>? OnReceivedListAct;
+        public event Action<JsonElement>? ReceivedAct;
+        public event Action<List<JsonElement>>? OnReceivedListAct;
 
         public async Task ReceiveDataAsync()
         {
@@ -53,11 +53,11 @@ namespace ServerBlockChain.Entities
 
             if (this.Buffer.IsList)
             {
-                var resultList = JsonSerializer.Deserialize<List<T>>(jsonData);
+                var resultList = JsonSerializer.Deserialize<List<JsonElement>>(jsonData);
                 OnReceivedList(resultList!);
                 return;
             }
-            var resultObj = JsonSerializer.Deserialize<T>(jsonData);
+            var resultObj = JsonSerializer.Deserialize<JsonElement>(jsonData);
             OnReceived(resultObj!);
         }
 
@@ -72,12 +72,12 @@ namespace ServerBlockChain.Entities
             await task;
         }
 
-        private void OnReceived(T data)
+        private void OnReceived(JsonElement data)
         {
             ReceivedAct?.Invoke(data);
         }
 
-        private void OnReceivedList(List<T> data)
+        private void OnReceivedList(List<JsonElement> data)
         {
             OnReceivedListAct!.Invoke(data);
         }

@@ -10,7 +10,6 @@ namespace ServerBlockChain.Entities
         public string IpPublic { get; set; } = string.Empty;
         public string IpLocal { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
-        public Socket? Socket;
         public bool Status { get; set; }
         public string So { get; set; } = string.Empty;
         public int HoursRunning { get; set; }

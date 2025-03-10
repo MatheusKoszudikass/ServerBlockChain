@@ -7,13 +7,13 @@ using ServerBlockChain.Interface;
 namespace ServerBlockChain.Service;
 
 public sealed class RemotoService(IMenuDisplayService menuDisplayService,
-IClientService clientService, IDataMonitorService<ClientMine> dataMonitorService,
+IClientService clientService, IDataMonitorService<object> dataMonitorService,
 IClientMonitor clientMonitor,
 IILogger<ServerListener> logger) : IRemotoService
 {
     private readonly IMenuDisplayService _menuDisplayService = menuDisplayService;
     private readonly IClientService _clientService = clientService;
-    private readonly IDataMonitorService<ClientMine> _dataMonitorService = dataMonitorService;
+    private readonly IDataMonitorService<object> _dataMonitorService = dataMonitorService;
     private readonly IClientMonitor _clientMonitor = clientMonitor;
     private readonly IILogger<ServerListener> _logger = logger;
     private readonly SemaphoreSlim _semaphore = new(1, 1);
@@ -88,7 +88,6 @@ IILogger<ServerListener> logger) : IRemotoService
             var certificate = new Certificate();
             certificate.LoadCertificateFromEnvironment();
             await _dataMonitorService.StartDepedenciesAsync(socket, certificate);
-            // await _dataMonitorService.ReceiveDataAsync();
         }
         catch (SemaphoreFullException ex)
         {
@@ -101,7 +100,6 @@ IILogger<ServerListener> logger) : IRemotoService
         finally
         {
             _semaphore.Release();
-            // await OpenMonitorReceiveClient();
         }
     }
 

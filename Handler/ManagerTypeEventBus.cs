@@ -1,5 +1,4 @@
 using System.Text.Json;
-using ServerBlockChain.Service;
 using ServerBlockChain.Entities;
 using ServerBlockChain.Util;
 
@@ -9,9 +8,12 @@ public class ManagerTypeEventBus()
 {
     private readonly GlobalEventBus _globalEventBus = GlobalEventBus.InstanceValue;
 
-    public void PublishEventType(object data)
+    public void PublishEventType(JsonElement data)
     {
-        switch (data)
+        var obj = JsonElementConvert.ConvertToObject(data);
+        if (obj == null) throw new ArgumentNullException(nameof(data));
+        Console.WriteLine($"Type: {data.GetType().Name}");
+        switch (obj)
         {
             case ClientMine clientMine:
                 _globalEventBus.Publish(clientMine);
@@ -33,29 +35,29 @@ public class ManagerTypeEventBus()
         }
     }
 
-    public void PublishListEventType<T>(List<T> data)
+    public void PublishListEventType(List<JsonElement> data)
     {
-        if (data == null || data.Count == 0) throw new ArgumentNullException(nameof(data));
-        Console.WriteLine($"Type: {data.GetType().Name}");
-        switch (data)
+        var obj = new List<object>();
+
+        foreach (var item in data)
         {
-            case List<ClientMine> ClientMines:
-                _globalEventBus.PublishList(ClientMines);
-                break;
-            case List<ServerListener> ServerListener:
-                _globalEventBus.PublishList(ServerListener);
-                break;
-            case List<LogEntry> logEntries:
-                _globalEventBus.PublishList(logEntries);
-                break;
-            case List<SendMessageDefault> sendMessageDefaults:
-                _globalEventBus.PublishList(sendMessageDefaults);
-                break;
-            case List<string> messagens:
-                _globalEventBus.PublishList(messagens);
-                break;
-            default:
-                throw new ArgumentException("Unsupported data list type", nameof(data));
+            obj.Add(JsonElementConvert.ConvertToObject(item));
         }
+
+        if (obj == null || obj.Count == 0) throw new ArgumentNullException(nameof(data));
+        Console.WriteLine($"Type List: {obj.GetType().Name}");
+
+        if (obj.All(o => o is ClientMine))
+            _globalEventBus.PublishList(obj.Cast<ClientMine>().ToList());
+        else if (obj.All(o => o is ServerListener))
+            _globalEventBus.PublishList(obj.Cast<ServerListener>().ToList());
+        else if (obj.All(o => o is LogEntry))
+            _globalEventBus.PublishList(obj.Cast<LogEntry>().ToList());
+        else if (obj.All(o => o is SendMessageDefault))
+            _globalEventBus.PublishList(obj.Cast<SendMessageDefault>().ToList());
+        else if (obj.All(o => o is string))
+            _globalEventBus.PublishList(obj.Cast<string>().ToList());
+        else
+            throw new ArgumentException("Unsupported data list type", nameof(data));
     }
 }

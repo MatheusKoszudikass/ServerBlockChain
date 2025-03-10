@@ -26,6 +26,6 @@ namespace ServerBlockChain.Entities
         public object? Source { get; set; }
         public string StackTrace { get; set; } = string.Empty;
 
-        [JsonIgnore] public IntPtr Handle { get; set; }
+        [JsonIgnore] private IntPtr Handle { get; set; }
     }
 }

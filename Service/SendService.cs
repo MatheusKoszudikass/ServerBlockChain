@@ -32,7 +32,6 @@ namespace ServerBlockChain.Service
             lock (_managerTypeEventBus)
             {
                 Console.WriteLine($"Data sent {data}");
-                _managerTypeEventBus.PublishEventType(data!);
             }
         }
         
@@ -41,7 +40,6 @@ namespace ServerBlockChain.Service
             lock (_managerTypeEventBus)
             {
                 Console.WriteLine($"List sent {listData}");
-                _managerTypeEventBus.PublishEventType(listData);
             }
         }
     }

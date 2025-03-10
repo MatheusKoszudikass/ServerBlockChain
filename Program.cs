@@ -29,6 +29,7 @@ internal abstract class Program
             .AddSingleton(typeof(ISend<>), typeof(SendService<>))
             .BuildServiceProvider();
 
+        _= new LoggerReceivedClient();
         var remotoService = serviceProvider.GetService<IRemotoService>();
         remotoService?.CreateRemoto();
         _ = new LoggerReceivedClient();

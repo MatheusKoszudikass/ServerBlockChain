@@ -41,7 +41,6 @@ public class SerializationService<T> : ISerialization<T>
             var json = Encoding.UTF8.GetString(data);
             var result = JsonSerializer.Deserialize<T>(json)
                          ?? throw new SerializationException($"Deserialization resulted in null for {typeof(T).Name}");
-            _managerTypeEventBus.PublishEventType(result);
             return result;
         }
         catch (Exception ex)

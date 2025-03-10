@@ -1,4 +1,5 @@
 using System.Net.Security;
+using System.Text.Json;
 using ServerBlockChain.Entities;
 using ServerBlockChain.Handler;
 using ServerBlockChain.Interface;
@@ -42,17 +43,16 @@ public sealed class ReceiveService<T> : IReceive<T>
     public async Task ReceiveListDataAsync(CancellationToken cts = default)
     {
         var receiveList = new ReceiveList<T>(_sslStream);
-        receiveList.ReceiveListAct += OnReceiveList;
         await receiveList.ReceiveListAsync(cts);
     }
 
-    private void OnReceivedAtc(T data)
+    private void OnReceivedAtc(JsonElement data)
     {
         Console.WriteLine($"Data received{data}");
         _managerTypeEventBus.PublishEventType(data!);
     }
 
-    private void OnReceiveList(List<T> listData)
+    private void OnReceiveList(List<JsonElement> listData)
     {
         Console.WriteLine($"List received {listData}");
         _managerTypeEventBus.PublishListEventType(listData);
