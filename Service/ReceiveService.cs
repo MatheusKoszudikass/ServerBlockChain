@@ -1,36 +1,60 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net.Security;
-using System.Threading.Channels;
-using System.Threading.Tasks;
 using ServerBlockChain.Entities;
+using ServerBlockChain.Handler;
 using ServerBlockChain.Interface;
 
-namespace ServerBlockChain.Service
+namespace ServerBlockChain.Service;
+
+public sealed class ReceiveService<T> : IReceive<T>
 {
-    public class ReceiveService<T> (SslStream ssltream, CancellationTokenSource cancellationToken) : IReceive<T>
+    private readonly SslStream _sslStream;
+    private readonly ManagerTypeEventBus _managerTypeEventBus = new();
+    private readonly SemaphoreSlim _semaphoreSlim = new(1, 1);
+
+    public ReceiveService(SslStream ssltream)
     {
-        private readonly SslStream _sslStream = ssltream;
-        private Receive<T>? _receive;
-        private readonly CancellationToken _cancellationToken = cancellationToken.Token;  
-        public event Action<T>? ReceivedAtc;
-        public event Action<SslStream>? ClientDesconnectedAct;
-
-        public async Task ReceiveDataAsync()
+        _sslStream = ssltream;
+        Task.Run(() => ReceiveDataAsync());
+    }
+    public async Task ReceiveDataAsync(CancellationToken cts = default)
+    {
+        try
         {
-          _receive = new Receive<T>(_sslStream, cancellationToken);
+            while (!cts.IsCancellationRequested)
+            {
+                Console.WriteLine($"{_semaphoreSlim.CurrentCount}");
+                var receive = new Receive<T>(_sslStream, cts);
 
-          _receive.ClientDisconnectedAct += (data) => ClientDesconnectedAct?.Invoke(data);
-          _receive.ReceivedAct += (data) => OnReceivedAtc(data);
+                receive.ReceivedAct += OnReceivedAtc;
+                receive.OnReceivedListAct += OnReceiveList;
 
-           await _receive.ReceiveDataAsync();
+                await receive.ReceiveDataAsync();
+            }
+
         }
-
-        protected virtual void OnReceivedAtc(T data)
+        catch (Exception ex)
         {
-            ReceivedAtc?.Invoke(data);
+            Console.WriteLine($"Error receiving data {ex.Message}");
+            throw;
         }
-        
+    }
+
+    public async Task ReceiveListDataAsync(CancellationToken cts = default)
+    {
+        var receiveList = new ReceiveList<T>(_sslStream);
+        receiveList.ReceiveListAct += OnReceiveList;
+        await receiveList.ReceiveListAsync(cts);
+    }
+
+    private void OnReceivedAtc(T data)
+    {
+        Console.WriteLine($"Data received{data}");
+        _managerTypeEventBus.PublishEventType(data!);
+    }
+
+    private void OnReceiveList(List<T> listData)
+    {
+        Console.WriteLine($"List received {listData}");
+        _managerTypeEventBus.PublishListEventType(listData);
     }
 }

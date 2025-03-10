@@ -1,15 +1,17 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Sockets;
-using System.Threading.Tasks;
-using ServerBlockChain.Entities;
-
 namespace ServerBlockChain.Interface
 {
+    /// <summary>
+    /// Defines a contract for monitoring clients connected to the server.
+    /// Responsible for managing asynchronous data reception from clients.
+    /// </summary>
     public interface IClientMonitor
     {
-        event Action<ClientInfo>? ClientDesconnectedAct;
-        Task MonitorConnectionClient(Socket socket);
+        /// <summary>
+        /// Starts monitoring and receiving data from connected clients.
+        /// Operates continuously until the cancellation token is triggered.
+        /// </summary>
+        /// <param name="cts">Cancellation token to stop monitoring when needed</param>
+        /// <returns>Task representing the asynchronous monitoring operation</returns>
+        Task OpenMonitorReceiveClient(CancellationToken cts = default);
     }
 }

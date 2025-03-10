@@ -13,7 +13,7 @@ namespace ServerBlockChain.Entities
         public DateTime ValidTo => X509Certificate?.NotAfter ?? DateTime.MinValue;
         public string Thumbprint => X509Certificate?.Thumbprint ?? string.Empty;
         public string SerialNumber => X509Certificate?.SerialNumber ?? string.Empty;
-
+        
         public event EventHandler<X509Certificate2>? CertificateChanged;
 
         public void LoadCertificateFromEnvironment()

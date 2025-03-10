@@ -1,122 +1,133 @@
 using System.Net.Security;
 using System.Net.Sockets;
-using System.Text.Json;
 using ServerBlockChain.Entities;
+using ServerBlockChain.Entities.Enum;
 using ServerBlockChain.Interface;
 
-namespace ServerBlockChain.Service
+namespace ServerBlockChain.Service;
+
+public class DataMonitorService<T>(IClientManager clientManager,
+ IILogger<T> ilogger) : IDataMonitorService<T>
 {
-    public class DataMonitorService<T>(IClientManager clientManager) : IDataMonitorService<T>
+    private readonly IClientManager _clientManager = clientManager;
+    private readonly IILogger<T> _logger = ilogger;
+    private Socket? _socket;
+    private SendService<T>? _sendService;
+    private ReceiveService<T>? _receiveService;
+
+    public async Task StartDepedenciesAsync(Socket socket,
+        Certificate certificate, CancellationToken cts = default)
     {
-        private readonly IClientManager _clientManager = clientManager;
-        private Socket? _socket;
-        private SslStream? _sslStream;
-        private ChannelService<T>? _channel;
-        private Certificate? _certificate;
-        private readonly CancellationTokenSource _cancellationTokenSource = new();
-        private event Action<ClientInfo>? ClienfInfo;
-        public event Action<T>? DataReceived;
-
-        public async Task StartDepencenciesAsync(Socket socket, Certificate certificate)
+        try
         {
-            try
-            {
-                _socket = socket;
-                _sslStream = await AuthenticateServer.AuthenticateServerAsync(socket, certificate);
+            _socket = socket;
+            var sslStream = await AuthenticateServer.AuthenticateServerAsync(socket, certificate);
 
-                lock (_clientManager)
-                {
-                    _clientManager.AddClient(socket, _sslStream);
-                }
-
-                _channel = new ChannelService<T>(_sslStream, _cancellationTokenSource);
-            }
-            catch (Exception ex)
+            lock (_clientManager)
             {
-                Console.WriteLine($"Error during monitoring: {ex.Message}");
+                _clientManager.AddClient(socket, sslStream);
+                _logger.Log(socket, "StartDependencies", LogLevel.Information);
             }
+
+            _sendService = new SendService<T>(sslStream);
+            _receiveService = new ReceiveService<T>(sslStream);
         }
-
-        public void StartDepencenciesAsync(Socket socket, SslStream sslStream)
+        catch (Exception ex)
         {
-            try
-            {
-                _channel = new ChannelService<T>(sslStream, _cancellationTokenSource);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error during monitoring: {ex.Message}");
-
-            }
+            Console.WriteLine($"Error during init dependencies: {ex.Message}");
+            DisconnectClient();
+            _logger.Log(socket, ex,
+                ex.Message + " Error during init dependencies", LogLevel.Error);
         }
+    }
 
-        public async Task ReceiveDataAsync()
+    public void StartDepedenciesAsync(Socket socket,
+        SslStream sslStream, CancellationToken cts = default)
+    {
+        try
         {
-            try
-            {
-                _channel!.DisconnectClientAct += (data) =>
-                {
-                    Console.WriteLine($"Client disconnected -=: {data}");
-                    _clientManager.DisconnectClient(data);
-                };
-
-                _channel!.ReceivedAct += (data) =>
-                {
-                    Console.WriteLine($"Received data +=: {data}");
-                    OnDataReceived(data);
-                };
-
-                await _channel!.ReadASync();
-
-            }
-            catch (SocketException ex)
-            {
-                Console.WriteLine($"Socket error: {ex.Message}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error receiving data: {ex.Message}");
-            }
+            _sendService = new SendService<T>(sslStream);
+            _receiveService = new ReceiveService<T>(sslStream);
         }
-
-        public async Task SendDataAsync(T data)
-        {         
-            _channel!.DisconnectClientAct += (data) =>
-            {
-                Console.WriteLine($"Client disconnected -=: {data}");
-                _clientManager.DisconnectClient(data);
-            };
-
-            _channel!.SendAct += (data) =>
-            {
-                Console.WriteLine($"Sent data: {data}");
-            };
-
-            await _channel!.WriteAsync(data);
-        }
-
-        private void VerifyDependencies()
+        catch (Exception ex)
         {
-            if (_socket == null || _sslStream == null)
-                throw new Exception("Dependencies not initialized");
+            Console.WriteLine($"Error during monitoring: {ex.Message}");
+            _logger.Log(socket, ex,
+                "Error during two init dependencies" + ex.Message, LogLevel.Error);
         }
+    }
 
-        private bool VerifyDependenciesStart()
+    public async Task ReceiveDataAsync(CancellationToken cts = default)
+    {
+        try
         {
-            if (_socket != null || _sslStream != null || _certificate != null) return true;
-
-            return false;
+            await _receiveService!.ReceiveDataAsync(cts);
         }
-
-        public void StopMonitoring()
+        catch (SocketException ex)
         {
-            _cancellationTokenSource.Cancel();
+            Console.WriteLine($"Socket error: {ex.Message}");
+            DisconnectClient();
+            _logger.Log(_socket!, ex, "Error SslStream  ", LogLevel.Error);
         }
-
-        protected void OnDataReceived(T data)
+        catch (Exception ex)
         {
-            DataReceived?.Invoke(data);
+            Console.WriteLine($"Error receiving data: {ex.Message}");
+            DisconnectClient();
+            _logger.Log(_socket!, ex, "Error receiving data" + ex.Message, LogLevel.Error);
         }
+    }
 
+    public async Task ReceiveListAsync(CancellationToken cts = default)
+    {
+        try
+        {
+            await _receiveService!.ReceiveListDataAsync(cts);
+        }
+        catch (SocketException ex)
+        {
+            Console.WriteLine($"Socket error: {ex.Message}");
+            _logger.Log(_socket!, ex, "Error SslStream  ", LogLevel.Error);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error receiving data: {ex.Message}");
+            DisconnectClient();
+            _logger.Log(_socket!, ex, "Error receiving data" + ex.Message, LogLevel.Error);
+        }
+    }
+
+    public async Task SendDataAsync(T data, CancellationToken cts = default)
+    {
+        try
+        {
+            await _sendService!.SendAsync(data, cts);
+        }
+        catch (SocketException ex)
+        {
+            _logger.Log(_socket!, ex, "Error SendDataAsync data " + ex.Message, LogLevel.Error);
+            DisconnectClient();
+            Console.WriteLine("Socket error SendDataAsync");
+            throw;
+        }
+    }
+
+    public async Task SendListDataAsync(List<T> data, CancellationToken cts = default)
+    {
+        try
+        {
+            await _sendService!.SendAsync(data, cts);
+        }
+        catch (Exception ex)
+        {
+            _logger.Log(_socket!, ex, "Error SendDataAsync List<data> " + ex.Message, LogLevel.Error);
+            DisconnectClient();
+            Console.WriteLine(ex);
+            throw;
+        }
+    }
+
+    private void DisconnectClient()
+    {
+        _clientManager.DisconnectClient(_socket!);
     }
 }

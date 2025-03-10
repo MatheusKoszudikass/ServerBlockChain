@@ -4,13 +4,10 @@ using System.Linq;
 using System.Net.Security;
 using System.Threading.Tasks;
 
-namespace ServerBlockChain.Interface
-{
-    public interface ISend<T>
-    {
-        event Action<T> SendingAtc;
-        event Action<SslStream> ClientDisconnectedAtc;
+namespace ServerBlockChain.Interface;
 
-        Task SendAsync(T data);
-    }
+public interface ISend<T>
+{
+    Task SendAsync(T data, CancellationToken cts = default);
+    Task SendAsync(List<T> data, CancellationToken cts = default);
 }

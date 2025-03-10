@@ -1,18 +1,23 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Security;
-using System.Threading.Tasks;
-
 namespace ServerBlockChain.Interface
 {
-    public interface IChannelService<T>
+    /// <summary>
+    /// Represents a communication channel for reading and writing data asynchronously.
+    /// </summary>
+    public interface IDataChannelService
     {
-        event Action<T>? ReceivedAct;
-        event Action<T>? SendAct;
-        event Action<SslStream>? DisconnectClientAct;
-        Task WriteAsync(T data);
-        Task ReadASync();
-        IAsyncEnumerable<T> ReadAllAsync();
+        /// <summary>
+        /// Writes data asynchronously to the channel.
+        /// </summary>
+        /// <param name="data">The byte array containing the data to be written.</param>
+        /// <param name="cts">A cancellation token to cancel the operation if needed.</param>
+        /// <returns>A task representing the asynchronous operation.</returns>
+        Task WriteAsync(byte[] data, CancellationToken cts = default);
+
+        /// <summary>
+        /// Reads data asynchronously from the channel.
+        /// </summary>
+        /// <param name="cts">A cancellation token to cancel the operation if needed.</param>
+        /// <returns>A task representing the asynchronous read operation.</returns>
+        Task ReadAsync(CancellationToken cts = default);
     }
 }

@@ -1,40 +1,60 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Sockets;
-using System.Threading.Tasks;
 using ServerBlockChain.Entities;
+using ServerBlockChain.Entities.Enum;
+using ServerBlockChain.Handler;
 using ServerBlockChain.Interface;
+using static System.Threading.Tasks.Task;
 
-namespace ServerBlockChain.Service
+namespace ServerBlockChain.Service;
+
+public class ClientMonitorService : IClientMonitor
 {
-    public class ClientMonitorService(
-        IDataMonitorService<object> dataMonitorService,
-        IClientManager clientManager) : IClientMonitor
+    private readonly IDataMonitorService<LogEntry> _dataMonitorService;
+    private readonly IClientManager _clientManager;
+    private readonly IILogger<LogEntryServer> _iLogger;
+    private readonly SemaphoreSlim _semaphoreSlim = new(1, 1);
+
+    public ClientMonitorService(IDataMonitorService<LogEntry>
+        dataMonitorService, IClientManager clientManager, IILogger<LogEntryServer> iLogger)
     {
-        private IDataMonitorService<object> _dataMonitorService = dataMonitorService;
-        private IClientManager _clientManager = clientManager;
-        public event Action<ClientInfo>? ClientDesconnectedAct;
+        _iLogger = iLogger;
+        _dataMonitorService = dataMonitorService;
+        _clientManager = clientManager;
+        Task.Run(() => ReceiveDataAsync());
+    }
 
-        public async Task MonitorConnectionClient(Socket socket)
+    public async Task OpenMonitorReceiveClient(CancellationToken cts = default)
+    {
+        await Run(async () => await ReceiveDataAsync(cts), cts);
+    }
+
+    private async Task ReceiveDataAsync(CancellationToken cancellationToken = default)
+    {
+        var clients = _clientManager.GetAllClientsNoCompleteInfo();
+        foreach (var client in clients)
         {
-            var clientTasks = new List<Task>();
-
-            var clients = _clientManager.GetAllClients();
-
-            foreach (var clientInfo in clients)
+            try
             {
-                while (socket.Connected)
-                {
-                    Console.WriteLine($"Client {clientInfo?.Socket!.Connected} connected.");
-                    _dataMonitorService.StartDepencenciesAsync(clientInfo!.Socket!, clientInfo?.SslStream!);
-                    await _dataMonitorService.ReceiveDataAsync();
-                    await _dataMonitorService.SendDataAsync(SendMessageDefault.MessageSuccess);
-                    await Task.Delay(5000);
-                }
-            }
+                await _semaphoreSlim.WaitAsync(cancellationToken);
+                if (!client.Socket!.Connected) continue;
 
-            await Task.WhenAll(clientTasks);
+                _dataMonitorService.StartDepedenciesAsync(client.Socket, client.SslStream!, cts: cancellationToken);
+
+                using var ctsTimeout = new CancellationTokenSource();
+
+                using var linkedCts =
+                    CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, ctsTimeout.Token);
+
+                await _dataMonitorService.ReceiveDataAsync(linkedCts.Token);
+            }
+            catch (Exception ex)
+            {
+                _iLogger.Log(client, ex, $"Client Log {ex.Message}", LogLevel.Error);
+            }
+            finally
+            {
+                _semaphoreSlim.Release();
+                _iLogger.Log(client, $"Client disconnected {client}", LogLevel.Information);
+            }
         }
     }
 }

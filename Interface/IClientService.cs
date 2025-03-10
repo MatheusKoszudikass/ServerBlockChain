@@ -1,50 +1,52 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net.Sockets;
-using System.Security.Cryptography.X509Certificates;
-using System.Threading.Tasks;
 using ServerBlockChain.Entities;
 using ServerBlockChain.Entities.Enum;
 
 namespace ServerBlockChain.Interface
 {
+    /// <summary>
+    /// Defines a contract for managing client services in the server application.
+    /// Handles client connections, information display, and disconnection operations.
+    /// </summary>
     public interface IClientService
     {
         /// <summary>
-        /// Starts the client service with the specified server listener.
+        /// Initializes the client service with the specified server listener.
+        /// Sets up necessary configurations and prepares for client handling.
         /// </summary>
-        /// <param name="serverListener">The server listener to be used.</param>
+        /// <param name="serverListener">The server listener instance to handle connections</param>
         void Start(ServerListener serverListener);
-
-        Task ListenerConnectionClient(Socket socket, Certificate certificate);
-
+        
         /// <summary>
-        /// Connects a client to the server using the specified server listener.
+        /// Establishes a new client connection to the server.
+        /// Handles the connection process and initial setup.
         /// </summary>
-        /// <param name="serverListener">The server listener to be used.</param>
         void ConnectClient();
 
         /// <summary>
-        /// Retrieves and displays all connected clients based on the specified type and server listener.
+        /// Retrieves and displays all connected clients based on the specified display type.
+        /// Provides different visualization options for client information.
         /// </summary>
-        /// <param name="type">The type of display to be used.</param>
-        /// <param name="serverListener">The server listener to be used.</param>
+        /// <param name="type">The type of help/display format to use</param>
         void GetAllConnectedClients(TypeHelp type);
 
         /// <summary>
-        /// Displays information about a specific client.
+        /// Displays detailed information about the currently selected client.
+        /// Shows connection status, client ID, and other relevant metadata.
         /// </summary>
         void ShowClientInfo();
 
         /// <summary>
-        /// Selects a client from the list of connected clients.
+        /// Allows selection of a specific client from the list of connected clients.
+        /// Enables interaction with a particular client instance.
         /// </summary>
         void SelectClient();
 
         /// <summary>
-        /// Disconnects a client from the server.
+        /// Terminates the connection with a specific client.
+        /// Handles cleanup and resource release for the disconnected client.
         /// </summary>
+        /// <param name="socketClient">The socket of the client to disconnect</param>
         void DisconnectClient(Socket socketClient);
     }
 }

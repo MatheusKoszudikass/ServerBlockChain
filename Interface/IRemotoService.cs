@@ -9,7 +9,6 @@ namespace ServerBlockChain.Interface
 {
     public interface IRemotoService
     {
-        event Action<Socket> ClientConnectedAtc;
         void CreateRemoto();
 
         void StopRemoto();

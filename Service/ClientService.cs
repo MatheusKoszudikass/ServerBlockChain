@@ -1,26 +1,39 @@
 using System.Net.Sockets;
 using ServerBlockChain.Entities;
 using ServerBlockChain.Entities.Enum;
+using ServerBlockChain.Handler;
 using ServerBlockChain.Interface;
 
 namespace ServerBlockChain.Service
 {
-    public class ClientService(IMenuDisplayService menuDisplayService,
-     IClientInteractionService clientInteractionService,
-     IDataMonitorService<ClientMine> dataMonitorService, IClientManager clientManager) : IClientService
+    public sealed class ClientService : IClientService
     {
-        private readonly IMenuDisplayService _menuDisplayService = menuDisplayService;
-        private readonly IClientInteractionService _clientInteractionService = clientInteractionService;
-        private readonly IDataMonitorService<ClientMine> _dataMonitorService = dataMonitorService;
-        private readonly IClientManager _clientManager = clientManager;
-
+        private readonly IMenuDisplayService _menuDisplayService;
+        private readonly IClientInteractionService _clientInteractionService;
+        private readonly IDataMonitorService<ClientMine> _dataMonitorService;
+        private readonly IClientManager _clientManager;
+        private readonly IClientMonitor _clientMonitor;
 
         public event Action<int>? TotalClientConnected;
-        public event Action<int>? TotalClientDesconnected;
         private readonly HashSet<ClientMine> _clientMines = [];
         private ServerListener _serverListener = new(5000);
         private CancellationTokenSource? _cancellationTokenSource = new();
         private string[] _options = [];
+
+        public ClientService(IMenuDisplayService menuDisplayService,
+            IClientInteractionService clientInteractionService,
+            IDataMonitorService<ClientMine> dataMonitorService, IClientManager clientManager,
+            IClientMonitor clientMonitor)
+        {
+            _menuDisplayService = menuDisplayService;
+            _clientInteractionService = clientInteractionService;
+            _dataMonitorService = dataMonitorService;
+            _clientManager = clientManager;
+            _clientMonitor = clientMonitor;
+            var globalEventBus = GlobalEventBus.InstanceValue;
+
+            globalEventBus.Subscribe<ClientMine>(OnClientMineAdd);
+        }
 
         public void Start(ServerListener serverListener)
         {
@@ -50,9 +63,9 @@ namespace ServerBlockChain.Service
                     "Select a client",
                     "Disconnect a client",
                     "Exit"
-
                 ];
                 _menuDisplayService.TotalClientConnected = _clientMines.Count;
+                //  _= Task.Run(() => MonitorClients());
                 _menuDisplayService.SelectedOption(TypeHelp.Select, this._options, this._options);
             }
             catch (Exception ex)
@@ -61,42 +74,22 @@ namespace ServerBlockChain.Service
             }
         }
 
-        public async Task ListenerConnectionClient(Socket socket, Certificate certificate)
+        private void OnClientMineAdd(ClientMine clientMine)
         {
-            _clientManager.DisconnectedClientAtc += (data) =>
-            {
-                var clientMine = _clientMines.FirstOrDefault(c => c.Socket == data.Socket);
-                if (clientMine != null)
-                {
-                    _clientMines.Remove(clientMine);
-                    _menuDisplayService.TotalClientConnected = _clientMines.Count;
-                }
-            };
-
-            // var clientInfo = _clientManager.GetLastClient();
-
-
-            _dataMonitorService.DataReceived += (data) =>
-            {
-                data.Socket = socket;
-                this._clientMines.Add(data);
-            };
-            await _dataMonitorService.StartDepencenciesAsync(socket, certificate);
-
-            await _dataMonitorService.ReceiveDataAsync();
+            _clientMines.Add(clientMine);
             _menuDisplayService.TotalClientConnected = _clientMines.Count;
-
+            Console.WriteLine($"{clientMine.Id}");
         }
 
         public void PopulateClientMines(int count)
         {
             var random = new Random();
-            for (int i = 1; i <= count; i++)
+            for (var i = 1; i <= count; i++)
             {
                 _clientMines.Add(new ClientMine()
                 {
                     IpPublic =
-                     $"{random.Next(1, 223)}.{random.Next(0, 256)}.{random.Next(0, 256)}.{random.Next(1, 256)}",
+                        $"{random.Next(1, 223)}.{random.Next(0, 256)}.{random.Next(0, 256)}.{random.Next(1, 256)}",
                     Name = i.ToString() + 1,
                     So = "Windows",
                     HoursRunning = i * 10
@@ -132,8 +125,12 @@ namespace ServerBlockChain.Service
         public void GetAllConnectedClients(TypeHelp type)
         {
             _menuDisplayService.DeleteOption();
-            this._options = [.._clientMines.Select(
-                    client => $"{client.IpPublic} - Name: {client.Name} SO:{client.So} - Status: {client.Status} - {DateTime.Now}")];
+            this._options =
+            [
+                .._clientMines.Select(
+                    client =>
+                        $"{client.IpPublic} - Name: {client.Name} SO:{client.So} - Status: {client.Status} - {DateTime.Now}")
+            ];
 
             _menuDisplayService.SelectedView(type, this._options);
 
@@ -143,10 +140,15 @@ namespace ServerBlockChain.Service
         public void SelectClient()
         {
             _menuDisplayService.DeleteOption();
-            this._options = [.. _clientMines.Select(
-                client => $"Id:{client.Id}, - IP public: {client.IpPublic} - Name: {client.Name} SO:{client.So} - Status: {client.Status} - {DateTime.Now}")];
+            this._options =
+            [
+                .. _clientMines.Select(
+                    client =>
+                        $"Id:{client.Id}, - IP public: {client.IpPublic} - Name: {client.Name} SO:{client.So} - Status: {client.Status} - {DateTime.Now}")
+            ];
 
-            if (_menuDisplayService.SelectedOption(TypeHelp.Select, this._options, [.. _clientMines]) is ClientMine clientMine)
+            if (_menuDisplayService.SelectedOption(TypeHelp.Select, this._options, [.. _clientMines]) is ClientMine
+                clientMine)
             {
                 _clientInteractionService.Start(clientMine);
                 return;
@@ -166,10 +168,6 @@ namespace ServerBlockChain.Service
 
         public void DisconnectClient(Socket socketClient)
         {
-
-            // var ipClient = socketClient.RemoteEndPoint?.ToString()?.Split(":")[0]
-            //  ?? socketClient.LocalEndPoint?.ToString()?.Split(":")[0];
-
             var ipClient = socketClient.LocalEndPoint?.ToString()?.Split(":")[0];
 
             var clientToRemove = _clientMines.FirstOrDefault(c => c.IpLocal == ipClient || c.IpPublic == ipClient);
@@ -179,7 +177,6 @@ namespace ServerBlockChain.Service
                 _clientMines.Remove(clientToRemove);
                 Console.WriteLine($"Client {clientToRemove.Name} disconnected.");
             }
-            // Environment.Exit(0);
         }
 
         public void StopListening()
@@ -190,7 +187,13 @@ namespace ServerBlockChain.Service
                 _cancellationTokenSource.Dispose();
                 _cancellationTokenSource = null;
             }
+
             Start(_serverListener);
+        }
+
+        private void OnTotalClientConnected(int obj)
+        {
+            TotalClientConnected?.Invoke(obj);
         }
     }
 }

@@ -11,6 +11,7 @@ namespace ServerBlockChain.Entities
     {
         public Guid Id { get; set; } = Guid.NewGuid();
         public Socket? Socket { get; set; }
+        public bool StatusInfoComplete { get; set; }
         public SslStream? SslStream { get; set; }
     }
 }

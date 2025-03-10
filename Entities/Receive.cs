@@ -1,110 +1,69 @@
-using System;
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace ServerBlockChain.Entities
 {
-    public class Receive<T>(SslStream sslStream, CancellationTokenSource cancellationTokenSource)
+    public sealed class Receive<T>(SslStream sslStream, CancellationToken cancellationToken)
     {
         private readonly SslStream _sslStream = sslStream;
-        private int TotalBytesReceived = 0;
-        public CancellationTokenSource _cancellationTokenSource = cancellationTokenSource;
+        private int _totalBytesReceived;
+        private readonly CancellationToken _cancellationToken = cancellationToken;
+        private readonly StateObject Buffer = new();
         public event Action<T>? ReceivedAct;
-        public event Action<CancellationTokenSource>? CanceledOperationAtc;
-        public event Action<SslStream>? ClientDisconnectedAct;
-        private readonly SemaphoreSlim _semaphore = new(1, 1);
+        public event Action<List<T>>? OnReceivedListAct;
 
         public async Task ReceiveDataAsync()
         {
-            try
-            {
-                await ExecuteWithTimeout(() => ReceiveLengthPrefix(), TimeSpan.FromSeconds(5));
-                await ExecuteWithTimeout(() => ReceiveObject(), TimeSpan.FromSeconds(5));
+            await ExecuteWithTimeout(() => ReceiveLengthPrefix(), TimeSpan.FromSeconds(5));
+            await ExecuteWithTimeout(() => ReceiveObject(), TimeSpan.FromSeconds(5));
 
-                DeserializeObject();
-            }
-            catch (SocketException ex)
-            {
-                throw new Exception($"Error receiving object: {ex.Message}");
-            }
+            DeserializeObject();
         }
 
         private async Task ReceiveLengthPrefix()
         {
-            await _semaphore.WaitAsync(_cancellationTokenSource.Token);
-            try
-            {
-                await _sslStream.ReadAsync(StateObject.BufferInit.AsMemory(0, StateObject.BufferInit.Length));
-                StateObject.BufferReceiveSize = BitConverter.ToInt32(StateObject.BufferInit, 0);
-                StateObject.BufferReceive = new byte[StateObject.BufferReceiveSize];
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Error receiving length prefix: {ex.Message}");
-            }
-            finally
-            {
-                _semaphore.Release();
-            }
+            _ = await this._sslStream.ReadAsync(this.Buffer.BufferInit, _cancellationToken);
+
+            this.Buffer.BufferSize = BitConverter.ToInt32(this.Buffer.BufferInit, 0);
+            this.Buffer.IsList = this.Buffer.BufferInit[4] == 1;
+
+            this.Buffer.BufferReceive = new byte[this.Buffer.BufferSize];
         }
 
         private async Task ReceiveObject()
         {
-            await _semaphore.WaitAsync(_cancellationTokenSource.Token);
-            try
+            _totalBytesReceived = 0;
+            while (_totalBytesReceived < this.Buffer.BufferSize)
             {
-                TotalBytesReceived = 0;
-                while (TotalBytesReceived < StateObject.BufferReceiveSize)
-                {
-                    int bytesRead = await _sslStream.ReadAsync(
-                        StateObject.BufferReceive.AsMemory(TotalBytesReceived,
-                        StateObject.BufferReceiveSize - TotalBytesReceived), _cancellationTokenSource.Token);
+                var bytesRead = await _sslStream.ReadAsync(
+                   this.Buffer.BufferReceive.AsMemory(_totalBytesReceived,
+                       this.Buffer.BufferSize - _totalBytesReceived), _cancellationToken);
 
-                    if (bytesRead == 0)
-                    {
-                        OnClientDisconnected();
-                        OnCanceledOperation(_cancellationTokenSource);
-                        break;
-                    }
-                    TotalBytesReceived += bytesRead;
-                }
-            }
-            catch (SocketException ex)
-            {
-                throw new Exception($"Error receiving object: {ex.Message}");
-            }
-            finally
-            {
-                _semaphore.Release();
+                if (bytesRead == 0) break;
+                _totalBytesReceived += bytesRead;
             }
         }
 
-        private T? DeserializeObject()
+        private void DeserializeObject()
         {
-            try
+            if (this._totalBytesReceived != this.Buffer.BufferSize) return;
+            var jsonData = Encoding.UTF8.GetString(this.Buffer.BufferReceive, 0, _totalBytesReceived);
+
+            if (this.Buffer.IsList)
             {
-                if (this.TotalBytesReceived == StateObject.BufferReceiveSize)
-                {
-                    string jsonData = Encoding.UTF8.GetString(StateObject.BufferReceive);
-                    var resultObj = JsonSerializer.Deserialize<T>(jsonData);
-                    OnReceived(resultObj!);
-                    return resultObj;
-                }
-                return default;
+                var resultList = JsonSerializer.Deserialize<List<T>>(jsonData);
+                OnReceivedList(resultList!);
+                return;
             }
-            catch (JsonException ex)
-            {
-                throw new Exception($"Error deserializing object: {ex.Message}");
-            }
+            var resultObj = JsonSerializer.Deserialize<T>(jsonData);
+            OnReceived(resultObj!);
         }
 
         private async Task ExecuteWithTimeout(Func<Task> taskFunc, TimeSpan timeout)
         {
-            var timeoutTask = Task.Delay(timeout, _cancellationTokenSource.Token);
+            var timeoutTask = Task.Delay(timeout, _cancellationToken);
             var task = taskFunc();
 
             if (await Task.WhenAny(task, timeoutTask) == timeoutTask)
@@ -113,19 +72,14 @@ namespace ServerBlockChain.Entities
             await task;
         }
 
-        protected virtual void OnReceived(T data)
+        private void OnReceived(T data)
         {
             ReceivedAct?.Invoke(data);
         }
 
-        protected virtual void OnCanceledOperation(CancellationTokenSource cancellationTokenSource)
+        private void OnReceivedList(List<T> data)
         {
-            CanceledOperationAtc?.Invoke(cancellationTokenSource);
-        }
-
-        protected virtual void OnClientDisconnected()
-        {
-            ClientDisconnectedAct?.Invoke(this._sslStream);
+            OnReceivedListAct!.Invoke(data);
         }
     }
 }

@@ -13,7 +13,7 @@ namespace ServerBlockChain.Service
     {
         public event Action? ReturnToClientService;
         private readonly IMenuDisplayService _menuDisplayService = menuDisplayService;
-        private ClientMine _clientMine = new ();
+        private ClientMine _clientMine = new();
         private string[] _options = [];
 
         public void Start(ClientMine clientMine)
@@ -26,10 +26,10 @@ namespace ServerBlockChain.Service
 
                 _menuDisplayService.DeleteOption();
                 _menuDisplayService.RegisterOption(0, () => ShowClientInfo());
-                _menuDisplayService.RegisterOption(1, () => SendChatMessage(""));
-                _menuDisplayService.RegisterOption(2, () => SendFile("C:\\Users\\User\\Desktop\\file.txt"));
-                _menuDisplayService.RegisterOption(3, () => SendObject(new object()));
-                _menuDisplayService.RegisterOption(4, () => ReturnToClientService?.Invoke());
+                // _menuDisplayService.RegisterOption(1, () => SendChatMessage(""));
+                // _menuDisplayService.RegisterOption(2, () => SendFile("C:\\Users\\User\\Desktop\\file.txt"));
+                // _menuDisplayService.RegisterOption(3, () => SendObject(new object()));
+                // _menuDisplayService.RegisterOption(4, () => ReturnToClientService?.Invoke());
 
                 this._options =
                 [
@@ -82,87 +82,34 @@ namespace ServerBlockChain.Service
             }
         }
 
-        public void SendChatMessage(string message)
+        public Task SendChatMessageAsync(string message)
         {
-            try
-            {
-
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Error sending chat message: " + ex.Message);
-            }
+            throw new NotImplementedException();
         }
 
-        public void ReceiveChatMessage()
+        public Task ReceiveChatMessageAsync()
         {
-            try
-            {
-                // Console.Clear();
-                // this._chat = new Chat(_clientMine);
-                // _chat.Start();
-                // _chat.InfoClientMine += (client, clientMine) =>
-                // {
-                //     Console.WriteLine($"{clientMine.IpPublic} - SO: {clientMine.So} - Status: {clientMine.Status} - {DateTime.Now}");
-                //     _clientMine = clientMine;
-                // };
-
-                // _menuDisplayService.DisplayMenu(TypeHelp.Menu);
-                // Console.ReadKey();
-                // Start(_clientMine);
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Error receiving chat message: " + ex.Message);
-            }
+            throw new NotImplementedException();
         }
 
-        public void SendFile(string filePath)
+        public Task SendFileAsync(string filePath)
         {
-            try
-            {
-
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Error sending file: " + ex.Message);
-            }
+            throw new NotImplementedException();
         }
 
-        public void ReceiveFile(string destinationPath)
+        public Task ReceiveFileAsync(string destinationPath)
         {
-            try
-            {
-
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Error receiving file: " + ex.Message);
-            }
+            throw new NotImplementedException();
         }
 
-        public void SendObject(object obj)
+        public Task SendObjectAsync<T>(T obj) where T : class
         {
-            try
-            {
-
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Error sending object: " + ex.Message);
-            }
+            throw new NotImplementedException();
         }
 
-        public object ReceiveObject()
+        public Task<T> ReceiveObjectAsync<T>() where T : class
         {
-            try
-            {
-                return new object();
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Error receiving object: " + ex.Message);
-            }
+            throw new NotImplementedException();
         }
     }
 }

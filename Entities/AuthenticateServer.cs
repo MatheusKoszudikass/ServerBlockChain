@@ -1,35 +1,37 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Authentication;
-using System.Threading.Tasks;
 
 namespace ServerBlockChain.Entities
 {
-    public class AuthenticateServer
+    public static class AuthenticateServer
     {
         public static async Task<SslStream> AuthenticateServerAsync(Socket socket, Certificate certificate)
         {
-            // if(_sslStream != null && _sslStream.IsAuthenticated)return _sslStream;
             try
             {
-                if (certificate == null || certificate.X509Certificate == null)
+                if (certificate?.X509Certificate == null)
                     throw new ArgumentNullException(nameof(certificate), "Certificate or X509Certificate cannot be null.");
 
                 var networkStream = new NetworkStream(socket);
-                var _sslStream = new SslStream(networkStream, false);
+                var sslStream = new SslStream(networkStream, false);
+                
+                await sslStream.AuthenticateAsServerAsync(
+                    certificate.X509Certificate, false, SslProtocols.Tls12, true);
 
-                await _sslStream.AuthenticateAsServerAsync(
-                    certificate.X509Certificate, false, SslProtocols.Tls12, false);
-
-                return _sslStream;
+                return ConfigureSslStream(sslStream);
             }
             catch (Exception ex)
             {
                 throw new Exception($"Error when authenticating the server: {ex.Message}");
             }
+        }
+
+        private static SslStream ConfigureSslStream(SslStream sslStream)
+        {
+            sslStream.ReadTimeout = 60000;
+            sslStream.WriteTimeout = 60000;
+            return sslStream;
         }
     }
 }
